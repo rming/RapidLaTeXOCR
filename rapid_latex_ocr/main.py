@@ -41,6 +41,8 @@ class LaTeXOCR:
         encoder_path: Union[str, Path] = None,
         decoder_path: Union[str, Path] = None,
         tokenizer_json: Union[str, Path] = None,
+        use_cuda: bool = False,
+        device_id: int = 0,
     ):
         self.image_resizer_path = image_resizer_path
         self.encoder_path = encoder_path
@@ -62,7 +64,11 @@ class LaTeXOCR:
 
         self.pre_pro = PreProcess(max_dims=self.max_dims, min_dims=self.min_dims)
 
-        self.image_resizer = OrtInferSession(self.image_resizer_path)
+        self.image_resizer = OrtInferSession(
+            self.image_resizer_path,
+            use_cuda=use_cuda,
+            device_id=device_id,
+        )
 
         self.encoder_decoder = EncoderDecoder(
             encoder_path=self.encoder_path,

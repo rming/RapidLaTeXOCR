@@ -8,7 +8,12 @@ from typing import List, Union
 
 import cv2
 import numpy as np
-from onnxruntime import GraphOptimizationLevel, InferenceSession, SessionOptions
+from onnxruntime import (
+    GraphOptimizationLevel,
+    InferenceSession,
+    SessionOptions,
+    get_available_providers,
+)
 from PIL import Image, UnidentifiedImageError
 
 root_dir = Path(__file__).resolve().parent
@@ -16,17 +21,23 @@ InputType = Union[str, np.ndarray, bytes, Path]
 
 
 class OrtInferSession:
-    def __init__(self, model_path: Union[str, Path], num_threads: int = -1):
+    def __init__(
+        self,
+        model_path: Union[str, Path],
+        num_threads: int = -1,
+        use_cuda: bool = False,
+        device_id: int = 0,
+    ):
         self.verify_exist(model_path)
 
         self.num_threads = num_threads
+        self.use_cuda = use_cuda
+        self.device_id = device_id
         self._init_sess_opt()
 
-        cpu_ep = "CPUExecutionProvider"
-        cpu_provider_options = {
-            "arena_extend_strategy": "kSameAsRequested",
-        }
-        EP_list = [(cpu_ep, cpu_provider_options)]
+        # 配置执行提供者
+        EP_list = self._get_providers()
+
         try:
             self.session = InferenceSession(
                 str(model_path), sess_options=self.sess_opt, providers=EP_list
@@ -34,6 +45,31 @@ class OrtInferSession:
         except TypeError:
             # compatible with onnxruntime 1.5.2
             self.session = InferenceSession(str(model_path), sess_options=self.sess_opt)
+
+    def _get_providers(self):
+        """获取执行提供者列表"""
+        providers = []
+        available_providers = get_available_providers()
+
+        if self.use_cuda and "CUDAExecutionProvider" in available_providers:
+            # CUDA 执行提供者配置
+            cuda_ep = "CUDAExecutionProvider"
+            cuda_provider_options = {
+                "device_id": self.device_id,
+                "arena_extend_strategy": "kSameAsRequested",
+                "cudnn_conv_algo_search": "HEURISTIC",
+                "do_copy_in_default_stream": True,
+            }
+            providers.append((cuda_ep, cuda_provider_options))
+
+        # CPU 执行提供者作为后备
+        cpu_ep = "CPUExecutionProvider"
+        cpu_provider_options = {
+            "arena_extend_strategy": "kSameAsRequested",
+        }
+        providers.append((cpu_ep, cpu_provider_options))
+
+        return providers
 
     def _init_sess_opt(self):
         self.sess_opt = SessionOptions()
