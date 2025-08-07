@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import List
 
 import setuptools
-from get_pypi_latest_version import GetPyPiLatestVersion
 
 
 def read_txt(txt_path: str) -> List:
@@ -28,21 +27,17 @@ def get_readme() -> str:
 
 MODULE_NAME = "rapid_latex_ocr"
 
-obtainer = GetPyPiLatestVersion()
-try:
-    latest_version = obtainer(MODULE_NAME)
-except ValueError:
-    latest_version = "0.0.1"
+# 设置版本号
+VERSION_NUM = "0.0.10"
 
-VERSION_NUM = obtainer.version_add_one(latest_version)
-
-# 优先提取commit message中的语义化版本号，如无，则自动加1
-if len(sys.argv) > 2:
-    match_str = " ".join(sys.argv[2:])
-    matched_versions = obtainer.extract_version(match_str)
-    if matched_versions:
-        VERSION_NUM = matched_versions
-sys.argv = sys.argv[:2]
+# 如果命令行参数中包含版本号，使用命令行指定的版本
+if len(sys.argv) > 2 and "--version" in sys.argv:
+    version_index = sys.argv.index("--version")
+    if version_index + 1 < len(sys.argv):
+        VERSION_NUM = sys.argv[version_index + 1]
+        # 移除版本相关的参数
+        sys.argv.remove("--version")
+        sys.argv.remove(VERSION_NUM)
 
 setuptools.setup(
     name=MODULE_NAME,
